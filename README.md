@@ -80,7 +80,7 @@ Date,Open,High,Low,Close,Volume
 - `Open`, `High`, `Low`, `Close` - OHLC prices
 - `Volume` - Trading volume
 
-> **Note:** If no CSV file is provided, the system will generate synthetic data for demonstration.
+> **Note:** You must provide a valid CSV file with stock price data. The system will not work without real data.
 
 ### Step 2: Setup Environment
 

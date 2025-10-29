@@ -122,11 +122,6 @@ df = ticker.history(start="2020-01-01", end="2024-12-31")
 df.to_csv("data/AAPL.csv")
 ```
 
-**Option 3: Synthetic Data**
-
-- If no CSV found, system creates synthetic data automatically
-- Good for testing, not for real predictions
-
 ---
 
 ## 🎯 Expected Results

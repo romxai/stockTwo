@@ -78,7 +78,8 @@ d:\Users\Fiona\Desktop\projects\DLNLP\stockTwo\
 | ----------- | ---------------------------- | -------------------- |
 | `README.md` | Instructions for data format | Documentation        |
 | `AAPL.csv`  | Your stock data              | **YES - Place here** |
-| `news.csv`  | Optional real news data      | No (uses synthetic)  |
+| `news.csv`  | News data (CSV format)       | **YES - Place here** |
+| `news.json` | News data (JSON format)      | **YES - or use CSV** |
 
 **CSV Format**:
 

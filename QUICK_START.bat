@@ -39,13 +39,15 @@ if exist "data\AAPL.csv" (
     echo ✅ Data file found: data\AAPL.csv
     echo.
 ) else (
-    echo ⚠️  Warning: data\AAPL.csv not found!
+    echo ❌ ERROR: data\AAPL.csv not found!
     echo.
-    echo The pipeline will use synthetic data for demonstration.
-    echo For real predictions, place your CSV file in the data\ folder.
+    echo The pipeline REQUIRES a valid stock data CSV file.
+    echo Please place your CSV file in the data\ folder.
     echo.
     echo See data\README.md for CSV format requirements.
     echo.
+    pause
+    exit /b 1
 )
 
 REM Step 3: Check environment

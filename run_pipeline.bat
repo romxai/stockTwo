@@ -21,12 +21,13 @@ if not exist "venv\Scripts\activate.bat" (
 REM Check if data file exists
 if not exist "data\AAPL.csv" (
     echo.
-    echo WARNING: Stock data file not found at data\AAPL.csv
-    echo The pipeline will create synthetic news data for demonstration.
+    echo ERROR: Stock data file not found at data\AAPL.csv
     echo.
-    echo For real data analysis, please place your AAPL.csv file in the data\ folder.
+    echo The pipeline REQUIRES a valid stock data CSV file.
+    echo Please place your AAPL.csv file in the data\ folder.
     echo.
     pause
+    exit /b 1
 )
 
 echo [1/2] Activating virtual environment...

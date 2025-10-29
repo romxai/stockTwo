@@ -1,5 +1,16 @@
 """
 Main pipeline script for stock prediction
+
+This script orchestrates the entire end-to-end pipeline:
+1. Load stock price and news data
+2. Engineer 150+ technical features
+3. Extract FinBERT text embeddings from news
+4. Prepare sequences for deep learning
+5. Build and train hybrid neural network
+6. Evaluate on test set
+7. Save model package for deployment
+
+The pipeline is designed to be reproducible and modular.
 """
 import sys
 import os
@@ -8,7 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import torch
 import numpy as np
 import warnings
-warnings.filterwarnings('ignore')
+warnings.filterwarnings('ignore')  # Suppress sklearn/numpy warnings
 
 from config import *
 from data_loader import load_stock_data, merge_stock_news, create_labels
@@ -21,23 +32,43 @@ import pickle
 
 
 def set_seeds(seed=42):
-    """Set random seeds for reproducibility"""
+    """
+    Set random seeds for reproducibility
+    
+    Ensures that runs with the same data and hyperparameters produce
+    identical results (important for debugging and fair comparison).
+    
+    Args:
+        seed: Random seed value
+    """
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
+        torch.cuda.manual_seed_all(seed)  # For multi-GPU setups
 
 
 def main():
-    """Main pipeline"""
+    """
+    Main pipeline - orchestrates all steps from data loading to model evaluation
+    
+    Pipeline stages:
+    1. Data Loading: Load stock prices and news
+    2. Feature Engineering: Create 150+ technical indicators
+    3. Text Embeddings: Extract FinBERT embeddings from news
+    4. Data Preparation: Create sequences and splits
+    5. Model Building: Initialize neural network
+    6. Training: Train with early stopping
+    7. Evaluation: Test set performance
+    8. Saving: Save complete model package
+    """
     print("="*80)
     print("🚀 STOCK PRICE PREDICTION WITH ADVANCED NLP & DEEP LEARNING")
     print("="*80)
 
-    # Set seeds
+    # Set random seeds for reproducibility across runs
     set_seeds(SEED)
 
-    # Check device
+    # Check device and print GPU info if available
     print(f"\n🔥 Using device: {DEVICE}")
     if torch.cuda.is_available():
         print(f"   GPU: {torch.cuda.get_device_name(0)}")
@@ -98,6 +129,11 @@ def main():
     # ============================================================================
     # STEP 4.5: CLASS BALANCING (COMMENTED OUT - SMOTE CORRUPTS TIME-SERIES DATA)
     # ============================================================================
+    # SMOTE (Synthetic Minority Over-sampling) is NOT USED because:
+    # 1. It creates synthetic samples by interpolating between existing samples
+    # 2. This averaging destroys temporal structure in time series data
+    # 3. Alternative: Use class weights or Focal Loss (implemented in model.py)
+    #
     # print("\n" + "="*80)
     # print("STEP 4.5: APPLYING SMOTE FOR CLASS BALANCING")
     # print("="*80)
@@ -125,7 +161,7 @@ def main():
     #         data_splits['train']['y_vol'][indices]
     #     ])
 
-    # Create dataloaders
+    # Create PyTorch DataLoaders for efficient batching
     dataloaders = create_dataloaders(data_splits, TRAINING_CONFIG['batch_size'])
 
     # ============================================================================
@@ -135,19 +171,22 @@ def main():
     print("STEP 5: BUILDING MODEL")
     print("="*80)
 
+    # Infer input dimensions from data
     sample_batch = next(iter(dataloaders['train']))
-    num_numerical_features = sample_batch[0].shape[-1]
-    num_text_features = sample_batch[1].shape[-1]
+    num_numerical_features = sample_batch[0].shape[-1]  # Technical indicators count
+    num_text_features = sample_batch[1].shape[-1]       # FinBERT embedding dimension (768)
 
     print(f"   Numerical features: {num_numerical_features}")
     print(f"   Text features: {num_text_features}")
 
+    # Initialize model with configuration from config.py
     model = UltraAdvancedStockPredictor(
         num_numerical_features=num_numerical_features,
         num_text_features=num_text_features,
-        **MODEL_CONFIG
+        **MODEL_CONFIG  # Unpack d_model, num_heads, dropout, etc.
     ).to(DEVICE)
 
+    # Print model statistics
     total_params = sum(p.numel() for p in model.parameters())
     print(f"\n📊 Model Statistics:")
     print(f"   Total parameters: {total_params:,}")
@@ -171,23 +210,23 @@ def main():
     print("STEP 7: EVALUATING MODEL")
     print("="*80)
 
-    # Load best model
+    # Load best model checkpoint (based on validation accuracy during training)
     checkpoint = torch.load(BEST_MODEL_PATH)
     model.load_state_dict(checkpoint['model_state_dict'])
     print(f"✅ Loaded best model from epoch {checkpoint['epoch'] + 1}")
 
-    # Evaluate on test set
+    # Evaluate on held-out test set (never seen during training/validation)
     test_preds, test_probs, test_labels, test_confidence = evaluate_full(
         model, dataloaders['test'], DEVICE
     )
 
-    # Calculate metrics
+    # Calculate comprehensive metrics
     metrics = calculate_metrics(test_labels, test_preds, test_probs)
 
-    # Print results
+    # Display results in formatted table
     print_evaluation_results(metrics, test_confidence.mean())
 
-    # Check target
+    # Check if target accuracy was achieved
     if metrics['accuracy'] >= TRAINING_CONFIG['target_accuracy']:
         print(f"\n✅ SUCCESS! Target accuracy {TRAINING_CONFIG['target_accuracy']:.1%} achieved!")
     else:
@@ -201,25 +240,27 @@ def main():
     print("STEP 8: SAVING MODEL PACKAGE")
     print("="*80)
 
+    # Package everything needed for deployment/inference
     model_package = {
-        'model_state_dict': model.state_dict(),
-        'model_config': {
+        'model_state_dict': model.state_dict(),           # Trained weights
+        'model_config': {                                  # Architecture config
             'num_numerical_features': num_numerical_features,
             'num_text_features': num_text_features,
             **MODEL_CONFIG
         },
-        'scalers': data_splits['scalers'],
-        'training_config': TRAINING_CONFIG,
-        'performance': {
+        'scalers': data_splits['scalers'],               # For normalizing new data
+        'training_config': TRAINING_CONFIG,               # Training hyperparameters
+        'performance': {                                   # Test set metrics
             'test_accuracy': metrics['accuracy'],
             'test_f1': metrics['f1'],
             'test_auc': metrics['auc'],
             'test_precision': metrics['precision'],
             'test_recall': metrics['recall']
         },
-        'training_history': history
+        'training_history': history                       # Learning curves
     }
 
+    # Save as pickle file for easy loading
     with open(FULL_PACKAGE_PATH, 'wb') as f:
         pickle.dump(model_package, f)
 
