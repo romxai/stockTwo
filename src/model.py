@@ -257,12 +257,7 @@ class UltraAdvancedStockPredictor(nn.Module):
         # 1. PROJECT
         num_features = self.num_projection(X_num)
         
-        # --- MODIFY THIS BLOCK ---
-        # text_features = self.text_projection(X_text)
-        
-        # EXPERIMENT: Mute text features to see if price data works alone
-        text_features = torch.zeros_like(num_features).to(num_features.device)
-        # --- END MODIFICATION ---
+        text_features = self.text_projection(X_text)
 
         # 2. PROCESS NUMERICAL
         num_features = self.multi_scale_conv(num_features)

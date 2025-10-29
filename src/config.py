@@ -54,11 +54,11 @@ MODEL_CONFIG = {
 TRAINING_CONFIG = {
     'epochs': 200,
     'batch_size': 32,
-    'learning_rate': 1e-4,
+    'learning_rate': 5e-4,
     'weight_decay': 1e-5,
     'gradient_accumulation_steps': 4,
     'max_grad_norm': 1.0,
-    'patience': 30,  # Early stopping patience
+    'patience': 50,  # Early stopping patience
     'target_accuracy': 0.80,
     'warmup_ratio': 0.3,  # For OneCycle scheduler
 }
