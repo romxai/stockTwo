@@ -54,7 +54,7 @@ MODEL_CONFIG = {
 TRAINING_CONFIG = {
     'epochs': 200,
     'batch_size': 32,
-    'learning_rate': 5e-4,
+    'learning_rate': 3e-4,     # <-- Change from 5e-4 to 3e-4 (a good start)
     'weight_decay': 1e-5,
     'gradient_accumulation_steps': 4,
     'max_grad_norm': 1.0,

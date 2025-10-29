@@ -52,9 +52,6 @@ def train_epoch(model, dataloader, criterion, optimizer, scheduler, scaler,
                 optimizer.step()
 
             optimizer.zero_grad()
-            # --- ADD THIS CHECK ---
-            if scheduler:
-                scheduler.step()
 
         # Track metrics
         total_loss += loss.item() * gradient_accumulation_steps
@@ -82,21 +79,12 @@ def setup_training(model, dataloaders, config, device):
         betas=(0.9, 0.999)
     )
 
-    total_steps = len(dataloaders['train']) * config['epochs']
-    
-    # --- COMMENT OUT THESE LINES ---
-    # scheduler = torch.optim.lr_scheduler.OneCycleLR(
-    #     optimizer,
-    #     max_lr=1e-4, # This was 1e-3, you changed it to 1e-4
-    #     total_steps=total_steps,
-    #     pct_start=config.get('warmup_ratio', 0.3),
-    #     anneal_strategy='cos',
-    #     div_factor=25.0,
-    #     final_div_factor=10000.0
-    # )
-    
-    # --- ADD THIS LINE INSTEAD ---
-    scheduler = None # Use a fixed LR
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode='min',      # Reduce on validation loss
+        factor=0.2,      # Reduce LR by 80% (0.2)
+        patience=10     # Wait 10 epochs for improvement
+    )
 
     scaler = GradScaler() if torch.cuda.is_available() else None
 
@@ -149,6 +137,10 @@ def train_model(model, dataloaders, config, device, save_path):
 
         # Validate
         val_metrics = evaluate(model, dataloaders['val'], criterion, device)
+
+        # Step the scheduler based on validation loss
+        if scheduler:
+            scheduler.step(val_metrics['loss'])
 
         # Update history
         history['train_loss'].append(train_loss)

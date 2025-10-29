@@ -384,3 +384,104 @@ class MultiTaskLoss(nn.Module):
             'volatility': 0,  # vol_loss.item() if 'vol_loss' in locals() else 0,
             'total': total_loss.item()
         }
+
+
+class SimpleHybridPredictor(nn.Module):
+    """
+    A simpler, more robust hybrid model.
+    - Processes numerical features with an LSTM.
+    - Processes text features with an LSTM.
+    - Concatenates the results and uses a simple MLP for prediction.
+    """
+    def __init__(self, 
+                 num_numerical_features, 
+                 num_text_features, 
+                 d_model=128,  # Smaller hidden size
+                 num_lstm_layers=2, 
+                 dropout=0.4):
+        
+        super().__init__()
+        self.d_model = d_model
+
+        # 1. Numerical Branch
+        self.num_projection = nn.Linear(num_numerical_features, d_model)
+        self.num_lstm = nn.LSTM(
+            input_size=d_model,
+            hidden_size=d_model,
+            num_layers=num_lstm_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=dropout if num_lstm_layers > 1 else 0
+        )
+
+        # 2. Text Branch
+        self.text_projection = nn.Linear(num_text_features, d_model)
+        self.text_lstm = nn.LSTM(
+            input_size=d_model,
+            hidden_size=d_model,
+            num_layers=num_lstm_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=dropout if num_lstm_layers > 1 else 0
+        )
+
+        # 3. Final Prediction Head
+        # Concatenated LSTM outputs (num_lstm + text_lstm)
+        # Each is bidirectional, so hidden_size * 2
+        # Total input dim = (d_model * 2) + (d_model * 2) = d_model * 4
+        self.classifier = nn.Sequential(
+            nn.LayerNorm(d_model * 4),
+            nn.Linear(d_model * 4, d_model),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(d_model, 2)  # Output 2 logits for direction
+        )
+
+    def forward(self, X_num, X_text, return_attention=False):
+        
+        # 1. Process Numerical
+        num_features = self.num_projection(X_num)
+        # output is (batch, seq, features*2), hidden is (layers*2, batch, features)
+        _, (num_hidden, _) = self.num_lstm(num_features)
+        
+        # 2. Process Text
+        text_features = self.text_projection(X_text)
+        _, (text_hidden, _) = self.text_lstm(text_features)
+
+        # 3. Concatenate
+        # Get the final hidden state from the last layer (bidirectional)
+        # Shape: (batch, hidden_size*2)
+        num_final = torch.cat((num_hidden[-2,:,:], num_hidden[-1,:,:]), dim=1)
+        text_final = torch.cat((text_hidden[-2,:,:], text_hidden[-1,:,:]), dim=1)
+
+        # Concatenate the two branches
+        # Shape: (batch, hidden_size*4)
+        combined = torch.cat((num_final, text_final), dim=1)
+
+        # 4. Classify
+        direction_logits = self.classifier(combined)
+        
+        # Return dummy values for magnitude/volatility to match the loss function
+        return direction_logits, torch.zeros_like(direction_logits), torch.zeros_like(direction_logits)
+
+    def predict_with_confidence(self, X_num, X_text, mc_samples=10):
+        """Predict with uncertainty estimation using MC Dropout"""
+        self.train()
+
+        direction_preds = []
+
+        with torch.no_grad():
+            for _ in range(mc_samples):
+                dir_logits, _, _ = self.forward(X_num, X_text)
+                dir_probs = F.softmax(dir_logits, dim=-1)
+                direction_preds.append(dir_probs)
+
+        direction_preds = torch.stack(direction_preds)
+        mean_probs = direction_preds.mean(dim=0)
+        predictions = mean_probs.argmax(dim=-1)
+        variance = direction_preds.var(dim=0).mean(dim=-1)
+        confidence = 1.0 / (1.0 + variance)
+
+        self.eval()
+
+        return predictions, mean_probs, confidence

@@ -14,7 +14,7 @@ from config import *
 from data_loader import load_stock_data, merge_stock_news, create_labels
 from feature_engineering import create_advanced_features, prepare_data, apply_smote, create_dataloaders
 from text_embeddings import load_finbert, extract_finbert_features
-from model import UltraAdvancedStockPredictor
+from model import UltraAdvancedStockPredictor, SimpleHybridPredictor
 from train import train_model
 from evaluate import evaluate_full, calculate_metrics, print_evaluation_results
 import pickle
@@ -142,10 +142,12 @@ def main():
     print(f"   Numerical features: {num_numerical_features}")
     print(f"   Text features: {num_text_features}")
 
-    model = UltraAdvancedStockPredictor(
+    model = SimpleHybridPredictor(
         num_numerical_features=num_numerical_features,
         num_text_features=num_text_features,
-        **MODEL_CONFIG
+        d_model=128,  # Using simple config, not MODEL_CONFIG
+        num_lstm_layers=2,
+        dropout=0.4
     ).to(DEVICE)
 
     total_params = sum(p.numel() for p in model.parameters())
