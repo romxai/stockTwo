@@ -1,0 +1,8 @@
+# Models Directory
+
+Trained models will be saved here automatically.
+
+After training, you'll find:
+
+- `best_model.pt` - Best model checkpoint
+- `stock_predictor_complete.pkl` - Complete model package for inference

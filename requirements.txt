@@ -1,0 +1,50 @@
+# ============================================================================
+# STOCK PREDICTION REQUIREMENTS
+# PyTorch with CUDA 12.6 support for RTX 3070 Laptop GPU
+# Compatible with CUDA 12.9 (backwards compatible)
+# ============================================================================
+
+# Core Deep Learning Framework
+--extra-index-url https://download.pytorch.org/whl/cu126
+torch==2.9.0+cu126
+torchvision==0.24.0+cu126
+torchaudio==2.9.0+cu126
+
+
+
+# Transformers & NLP
+transformers==4.47.1
+tokenizers==0.21.0
+huggingface-hub==0.27.0
+safetensors==0.4.5
+
+# Data Processing
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.6.0
+scipy==1.14.1
+
+# Class Imbalance Handling
+imbalanced-learn==0.12.4
+
+# Technical Indicators
+ta==0.11.0
+
+# Financial Data
+yfinance==0.2.49
+
+# Visualization
+matplotlib==3.9.3
+seaborn==0.13.2
+plotly==5.24.1
+
+# Progress Bars
+tqdm==4.67.1
+
+# Model Interpretability
+shap==0.46.0
+
+# Configuration & Utilities
+pyyaml==6.0.2
+python-dateutil==2.9.0.post0
+pytz==2024.2
