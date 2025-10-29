@@ -15,9 +15,17 @@ from data_loader import load_stock_data, merge_stock_news, create_labels
 from feature_engineering import create_advanced_features, prepare_data, apply_smote, create_dataloaders
 from text_embeddings import load_finbert, extract_finbert_features
 from model import UltraAdvancedStockPredictor, SimpleHybridPredictor
+from model_transformer import TransformerStockPredictor
+from model_ensemble import EnsembleStockPredictor
+from model_denoising import DenoisingAttentionNetwork
 from train import train_model
 from evaluate import evaluate_full, calculate_metrics, print_evaluation_results
 import pickle
+import argparse
+
+# Command line argument parser
+parser = argparse.ArgumentParser(description="Train stock prediction model")
+parser.add_argument('--model', type=str, default='simple', choices=['simple', 'advanced', 'transformer', 'ensemble', 'denoising'], help='Model to train (simple, advanced, transformer, ensemble, or denoising)')
 
 
 def set_seeds(seed=42):
@@ -30,6 +38,11 @@ def set_seeds(seed=42):
 
 def main():
     """Main pipeline"""
+    # Parse command line arguments
+    args = parser.parse_args()
+    global MODEL_TYPE
+    MODEL_TYPE = args.model
+    
     print("="*80)
     print("🚀 STOCK PRICE PREDICTION WITH ADVANCED NLP & DEEP LEARNING")
     print("="*80)
@@ -141,17 +154,47 @@ def main():
 
     print(f"   Numerical features: {num_numerical_features}")
     print(f"   Text features: {num_text_features}")
+    print(f"   Selected model: {MODEL_TYPE.upper()}")
 
-    model = SimpleHybridPredictor(
-        num_numerical_features=num_numerical_features,
-        num_text_features=num_text_features,
-        d_model=128,  # Using simple config, not MODEL_CONFIG
-        num_lstm_layers=2,
-        dropout=0.4
-    ).to(DEVICE)
+    # Build model based on selection
+    if MODEL_TYPE == 'simple':
+        model = SimpleHybridPredictor(
+            num_numerical_features=num_numerical_features,
+            num_text_features=num_text_features,
+            d_model=128,
+            num_lstm_layers=2,
+            dropout=0.4
+        ).to(DEVICE)
+    elif MODEL_TYPE == 'advanced':
+        model = UltraAdvancedStockPredictor(
+            num_numerical_features=num_numerical_features,
+            num_text_features=num_text_features,
+            **MODEL_CONFIG
+        ).to(DEVICE)
+    elif MODEL_TYPE == 'transformer':
+        model = TransformerStockPredictor(
+            num_features=num_numerical_features,
+            text_features=num_text_features,
+            **TRANSFORMER_CONFIG
+        ).to(DEVICE)
+    elif MODEL_TYPE == 'ensemble':
+        model = EnsembleStockPredictor(
+            num_features=num_numerical_features,
+            text_features=num_text_features,
+            **ENSEMBLE_CONFIG
+        ).to(DEVICE)
+    elif MODEL_TYPE == 'denoising':
+        model = DenoisingAttentionNetwork(
+            num_features=num_numerical_features,
+            text_features=num_text_features,
+            **DENOISING_CONFIG
+        ).to(DEVICE)
+    else:
+        raise ValueError(f"Unknown model type: {MODEL_TYPE}. Choose 'simple', 'advanced', 'transformer', 'ensemble', or 'denoising'")
 
     total_params = sum(p.numel() for p in model.parameters())
     print(f"\n📊 Model Statistics:")
+    print(f"   Model type: {MODEL_TYPE}")
     print(f"   Total parameters: {total_params:,}")
     print(f"   Model size: ~{total_params * 4 / 1e6:.1f} MB (FP32)")
 
@@ -205,11 +248,15 @@ def main():
 
     model_package = {
         'model_state_dict': model.state_dict(),
+        'model_type': MODEL_TYPE,
         'model_config': {
             'num_numerical_features': num_numerical_features,
             'num_text_features': num_text_features,
             **MODEL_CONFIG
         },
+        'transformer_config': TRANSFORMER_CONFIG if MODEL_TYPE == 'transformer' else None,
+        'ensemble_config': ENSEMBLE_CONFIG if MODEL_TYPE == 'ensemble' else None,
+        'denoising_config': DENOISING_CONFIG if MODEL_TYPE == 'denoising' else None,
         'scalers': data_splits['scalers'],
         'training_config': TRAINING_CONFIG,
         'performance': {

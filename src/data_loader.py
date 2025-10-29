@@ -235,35 +235,57 @@ def merge_stock_news(stock_df: pd.DataFrame,
 
 def create_labels(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Create target labels for prediction
-
-    Args:
-        df: DataFrame with features
-
-    Returns:
-        DataFrame with labels
+    Create target labels for prediction, filtering for significant moves.
     """
     print("🎯 Creating target labels...")
 
     df = df.copy()
 
+    # Define a significance threshold (e.g., 0.5%)
+    THRESHOLD = 0.005  # You can tune this (0.005, 0.01, etc.)
+
     # Next day return
     df['next_return'] = df['close'].shift(-1) / df['close'] - 1
-
-    # Binary label: 1 if price goes up, 0 if down
-    df['target'] = (df['next_return'] > 0).astype(int)
 
     # Magnitude and volatility
     df['target_magnitude'] = np.abs(df['next_return'])
     df['target_volatility'] = df['returns'].rolling(window=5).std().shift(-1)
+    
+    # --- START NEW LABEL LOGIC ---
 
-    # Remove last row
-    df = df[:-1]
+    # Create target based on the threshold
+    def assign_label(ret):
+        if ret > THRESHOLD:
+            return 1  # Significant Up
+        elif ret < -THRESHOLD:
+            return 0  # Significant Down
+        else:
+            return np.nan  # Noise (will be dropped)
+
+    df['target'] = df['next_return'].apply(assign_label)
+
+    # Remove last row (which has no next_return)
+    df = df.iloc[:-1]
+
+    # **IMPORTANT**: Drop all rows that were 'noise'
+    rows_before = len(df)
+    df = df.dropna(subset=['target'])
+    rows_after = len(df)
+    
+    print(f"   Filtered for significant moves (>{THRESHOLD*100}%):")
+    print(f"   Removed {rows_before - rows_after} 'noise' samples ({ (rows_before - rows_after) / rows_before:.1%})")
+    print(f"   Remaining samples: {rows_after}")
+
+    # Convert target to integer
+    df['target'] = df['target'].astype(int)
+
+    # --- END NEW LABEL LOGIC ---
 
     # Class distribution
     class_counts = df['target'].value_counts()
-    print(f"\n   Class distribution:")
+    print(f"\n   New Class distribution:")
     for label, count in class_counts.items():
-        print(f"     Class {label}: {count} ({count/len(df):.1%})")
+        if len(df) > 0:
+            print(f"     Class {label}: {count} ({count/len(df):.1%})")
 
     return df

@@ -36,6 +36,8 @@ stockTwo/
 │   ├── feature_engineering.py    # Feature creation (150+ features)
 │   ├── text_embeddings.py        # FinBERT embeddings extraction
 │   ├── model.py                  # Neural network architectures
+│   ├── model_transformer.py      # Pure Transformer model
+│   ├── model_ensemble.py         # Ensemble LSTM+TCN+Transformer
 │   ├── train.py                  # Training loop
 │   ├── evaluate.py               # Evaluation metrics
 │   └── main.py                   # Main pipeline orchestrator
@@ -99,18 +101,30 @@ This will:
 
 ### Step 3: Run the Pipeline
 
+**Option 1: Default (Simple Model)**
+
 Double-click `run_pipeline.bat` or run:
 
 ```cmd
 run_pipeline.bat
 ```
 
-This will:
+**Option 2: Choose a Specific Model**
+
+```cmd
+venv\Scripts\activate.bat
+python src/main.py --model simple       # Simple LSTM-based (fast, good baseline)
+python src/main.py --model advanced     # Complex multi-scale architecture
+python src/main.py --model transformer  # Pure attention-based
+python src/main.py --model ensemble     # LSTM+TCN+Transformer ensemble (recommended for best accuracy)
+```
+
+The pipeline will:
 
 1. Activate the virtual environment
 2. Load and preprocess data
 3. Extract FinBERT embeddings
-4. Train the model (~30-45 minutes on RTX 3070)
+4. Train the selected model (~30-45 minutes on RTX 3070)
 5. Evaluate on test set
 6. Save trained model
 
@@ -137,12 +151,28 @@ After training, you should see:
 Edit `src/config.py` to customize:
 
 ```python
-# Model architecture
+# Model selection (can also use --model command line argument)
+MODEL_TYPE = 'simple'  # Options: 'simple', 'advanced', 'transformer', 'ensemble'
+
+# Model architecture (for advanced model)
 MODEL_CONFIG = {
     'd_model': 512,          # Embedding dimension
     'num_heads': 8,          # Attention heads
     'num_lstm_layers': 3,    # LSTM layers
     'dropout': 0.3           # Dropout rate
+}
+
+# Transformer-specific config
+TRANSFORMER_CONFIG = {
+    'd_model': 256,
+    'nhead': 8,
+    'num_layers': 6,
+    'dropout': 0.2
+}
+
+# Ensemble-specific config
+ENSEMBLE_CONFIG = {
+    'dropout': 0.3
 }
 
 # Training settings
@@ -176,7 +206,18 @@ CUDA Version: 12.6
 
 ## 📈 Training Details
 
-### Architecture Overview
+### Available Model Architectures
+
+**1. Simple Model (Default)**
+
+```
+Input → LSTM (Numerical) + LSTM (Text) → Concatenate → MLP → Prediction
+```
+
+- Fast training, good baseline
+- Best for: Quick experiments, limited GPU memory
+
+**2. Advanced Model**
 
 ```
 Input Branches:
@@ -192,6 +233,43 @@ Input Branches:
          Prediction Heads
        (Direction|Magnitude|Volatility)
 ```
+
+- Complex multi-scale architecture
+- Best for: Maximum customization
+
+**3. Transformer Model**
+
+```
+Input → Projection → Positional Encoding → Self-Attention
+                   ↓
+        Cross-Modal Attention
+                   ↓
+        Attention Pooling → Prediction Heads
+```
+
+- Pure attention-based
+- Best for: Capturing long-range dependencies
+
+**4. Ensemble Model (Recommended)**
+
+```
+Numerical Features:
+  ├─ LSTM Branch
+  ├─ TCN Branch (dilated convolutions)
+  └─ Transformer Branch
+           ↓
+    Concatenate
+           ↓
+Text Features:
+  ├─ LSTM Branch
+  ├─ TCN Branch
+  └─ Transformer Branch
+           ↓
+    Concatenate → Fusion → Prediction Heads
+```
+
+- Combines strengths of all architectures
+- Best for: Highest accuracy, robust predictions
 
 ### Training Process
 
@@ -255,14 +333,29 @@ After training, use the saved model:
 ```python
 import pickle
 import torch
-from src.model import UltraAdvancedStockPredictor
+from src.model import UltraAdvancedStockPredictor, SimpleHybridPredictor
+from src.model_transformer import TransformerStockPredictor
+from src.model_ensemble import EnsembleStockPredictor
 
 # Load model package
 with open('models/stock_predictor_complete.pkl', 'rb') as f:
     package = pickle.load(f)
 
-# Recreate model
-model = UltraAdvancedStockPredictor(**package['model_config'])
+# Recreate model based on type
+model_type = package['model_type']
+if model_type == 'simple':
+    model = SimpleHybridPredictor(**package['model_config'])
+elif model_type == 'advanced':
+    model = UltraAdvancedStockPredictor(**package['model_config'])
+elif model_type == 'transformer':
+    model = TransformerStockPredictor(**package['transformer_config'])
+elif model_type == 'ensemble':
+    model = EnsembleStockPredictor(
+        num_features=package['model_config']['num_numerical_features'],
+        text_features=package['model_config']['num_text_features'],
+        **package['ensemble_config']
+    )
+
 model.load_state_dict(package['model_state_dict'])
 model.eval()
 

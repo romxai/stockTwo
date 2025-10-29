@@ -37,6 +37,17 @@ TEST_SIZE = 0.15
 VAL_SIZE = 0.15
 
 # ============================================================================
+# MODEL SELECTION
+# ============================================================================
+# Available models:
+# - 'simple': SimpleHybridPredictor (LSTM-based, fast, good baseline)
+# - 'advanced': UltraAdvancedStockPredictor (Complex multi-scale architecture)
+# - 'transformer': TransformerStockPredictor (Pure attention-based)
+# - 'ensemble': EnsembleStockPredictor (LSTM + TCN + Transformer ensemble)
+# - 'denoising': DenoisingAttentionNetwork (Noise-robust with multi-scale denoising)
+MODEL_TYPE = 'simple'  # Change this to select which model to train
+
+# ============================================================================
 # MODEL ARCHITECTURE
 # ============================================================================
 MODEL_CONFIG = {
@@ -46,6 +57,28 @@ MODEL_CONFIG = {
     'num_transformer_layers': 2, # Was 4
     'num_regimes': 4,
     'dropout': 0.4           # INCREASE dropout to fight overfitting
+}
+
+# Transformer-specific config (used when MODEL_TYPE='transformer')
+TRANSFORMER_CONFIG = {
+    'd_model': 256,
+    'nhead': 8,
+    'num_layers': 6,
+    'dropout': 0.2
+}
+
+# Ensemble-specific config (used when MODEL_TYPE='ensemble')
+ENSEMBLE_CONFIG = {
+    'dropout': 0.3
+}
+
+# Denoising-specific config (used when MODEL_TYPE='denoising')
+DENOISING_CONFIG = {
+    'd_model': 256,
+    'nhead': 8,
+    'num_layers': 4,
+    'dropout': 0.3,
+    'use_wavelet': False  # Set to True to enable wavelet denoising (slow but effective)
 }
 
 # ============================================================================
