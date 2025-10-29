@@ -40,12 +40,12 @@ VAL_SIZE = 0.15
 # MODEL ARCHITECTURE
 # ============================================================================
 MODEL_CONFIG = {
-    'd_model': 512,
-    'num_heads': 8,
-    'num_lstm_layers': 3,
-    'num_transformer_layers': 4,
+    'd_model': 128,          # Was 512
+    'num_heads': 4,            # Was 8
+    'num_lstm_layers': 2,      # Was 3
+    'num_transformer_layers': 2, # Was 4
     'num_regimes': 4,
-    'dropout': 0.3
+    'dropout': 0.4           # INCREASE dropout to fight overfitting
 }
 
 # ============================================================================

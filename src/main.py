@@ -95,27 +95,35 @@ def main():
 
     data_splits = prepare_data(features_df, news_embeddings, SEQUENCE_LENGTH)
 
-    # Apply SMOTE to training data
-    data_splits['train']['X_num'], data_splits['train']['X_text'], data_splits['train']['y_dir'] = \
-        apply_smote(
-            data_splits['train']['X_num'],
-            data_splits['train']['X_text'],
-            data_splits['train']['y_dir']
-        )
-
-    # Update magnitude and volatility targets
-    n_new = len(data_splits['train']['y_dir'])
-    n_old = len(data_splits['train']['y_mag'])
-    if n_new > n_old:
-        indices = np.random.choice(n_old, n_new - n_old, replace=True)
-        data_splits['train']['y_mag'] = np.concatenate([
-            data_splits['train']['y_mag'],
-            data_splits['train']['y_mag'][indices]
-        ])
-        data_splits['train']['y_vol'] = np.concatenate([
-            data_splits['train']['y_vol'],
-            data_splits['train']['y_vol'][indices]
-        ])
+    # ============================================================================
+    # STEP 4.5: CLASS BALANCING (COMMENTED OUT - SMOTE CORRUPTS TIME-SERIES DATA)
+    # ============================================================================
+    # print("\n" + "="*80)
+    # print("STEP 4.5: APPLYING SMOTE FOR CLASS BALANCING")
+    # print("="*80)
+    #
+    # # COMMENTED OUT: SMOTE corrupts time-series data by averaging across time steps
+    # # The FocalLoss in MultiTaskLoss already handles class imbalance
+    # data_splits['train']['X_num'], data_splits['train']['X_text'], data_splits['train']['y_dir'] = \
+    #     apply_smote(
+    #         data_splits['train']['X_num'],
+    #         data_splits['train']['X_text'],
+    #         data_splits['train']['y_dir']
+    #     )
+    #
+    # # Update magnitude and volatility targets
+    # n_new = len(data_splits['train']['y_dir'])
+    # n_old = len(data_splits['train']['y_mag'])
+    # if n_new > n_old:
+    #     indices = np.random.choice(n_old, n_new - n_old, replace=True)
+    #     data_splits['train']['y_mag'] = np.concatenate([
+    #         data_splits['train']['y_mag'],
+    #         data_splits['train']['y_mag'][indices]
+    #     ])
+    #     data_splits['train']['y_vol'] = np.concatenate([
+    #         data_splits['train']['y_vol'],
+    #         data_splits['train']['y_vol'][indices]
+    #     ])
 
     # Create dataloaders
     dataloaders = create_dataloaders(data_splits, TRAINING_CONFIG['batch_size'])

@@ -256,7 +256,13 @@ class UltraAdvancedStockPredictor(nn.Module):
 
         # 1. PROJECT
         num_features = self.num_projection(X_num)
-        text_features = self.text_projection(X_text)
+        
+        # --- MODIFY THIS BLOCK ---
+        # text_features = self.text_projection(X_text)
+        
+        # EXPERIMENT: Mute text features to see if price data works alone
+        text_features = torch.zeros_like(num_features).to(num_features.device)
+        # --- END MODIFICATION ---
 
         # 2. PROCESS NUMERICAL
         num_features = self.multi_scale_conv(num_features)
@@ -350,27 +356,36 @@ class MultiTaskLoss(nn.Module):
         self.log_var_direction = nn.Parameter(torch.zeros(1))
         self.log_var_magnitude = nn.Parameter(torch.zeros(1))
         self.log_var_volatility = nn.Parameter(torch.zeros(1))
-        self.focal_loss = FocalLoss(alpha=0.25, gamma=2.0)
+        # --- CHANGE THIS ---
+        # self.focal_loss = FocalLoss(alpha=0.25, gamma=2.0)
+        self.focal_loss = nn.CrossEntropyLoss() # Use standard CE Loss
+        # --- END CHANGE ---
         self.mse_loss = nn.MSELoss()
 
     def forward(self, dir_logits, dir_targets, mag_preds, mag_targets, vol_preds, vol_targets):
+        # Focus ONLY on direction classification for now
+        # Disable magnitude and volatility tasks to simplify the problem
         dir_loss = self.focal_loss(dir_logits, dir_targets)
-        mag_loss = self.mse_loss(mag_preds, mag_targets)
-        vol_loss = self.mse_loss(vol_preds, vol_targets)
 
-        precision_dir = torch.exp(-self.log_var_direction)
-        precision_mag = torch.exp(-self.log_var_magnitude)
-        precision_vol = torch.exp(-self.log_var_volatility)
+        # COMMENTED OUT: Multi-task learning - model was ignoring hard direction task
+        # mag_loss = self.mse_loss(mag_preds, mag_targets)
+        # vol_loss = self.mse_loss(vol_preds, vol_targets)
+        #
+        # precision_dir = torch.exp(-self.log_var_direction)
+        # precision_mag = torch.exp(-self.log_var_magnitude)
+        # precision_vol = torch.exp(-self.log_var_volatility)
+        #
+        # weighted_dir_loss = precision_dir * dir_loss + self.log_var_direction
+        # weighted_mag_loss = precision_mag * mag_loss + self.log_var_magnitude
+        # weighted_vol_loss = precision_vol * vol_loss + self.log_var_volatility
+        #
+        # total_loss = weighted_dir_loss + weighted_mag_loss + weighted_vol_loss
 
-        weighted_dir_loss = precision_dir * dir_loss + self.log_var_direction
-        weighted_mag_loss = precision_mag * mag_loss + self.log_var_magnitude
-        weighted_vol_loss = precision_vol * vol_loss + self.log_var_volatility
-
-        total_loss = weighted_dir_loss + weighted_mag_loss + weighted_vol_loss
+        total_loss = dir_loss  # Just use direction loss
 
         return total_loss, {
             'direction': dir_loss.item(),
-            'magnitude': mag_loss.item(),
-            'volatility': vol_loss.item(),
+            'magnitude': 0,  # mag_loss.item() if 'mag_loss' in locals() else 0,
+            'volatility': 0,  # vol_loss.item() if 'vol_loss' in locals() else 0,
             'total': total_loss.item()
         }

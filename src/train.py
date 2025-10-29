@@ -52,7 +52,9 @@ def train_epoch(model, dataloader, criterion, optimizer, scheduler, scaler,
                 optimizer.step()
 
             optimizer.zero_grad()
-            scheduler.step()
+            # --- ADD THIS CHECK ---
+            if scheduler:
+                scheduler.step()
 
         # Track metrics
         total_loss += loss.item() * gradient_accumulation_steps
@@ -81,15 +83,20 @@ def setup_training(model, dataloaders, config, device):
     )
 
     total_steps = len(dataloaders['train']) * config['epochs']
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer,
-        max_lr=1e-3,
-        total_steps=total_steps,
-        pct_start=config.get('warmup_ratio', 0.3),
-        anneal_strategy='cos',
-        div_factor=25.0,
-        final_div_factor=10000.0
-    )
+    
+    # --- COMMENT OUT THESE LINES ---
+    # scheduler = torch.optim.lr_scheduler.OneCycleLR(
+    #     optimizer,
+    #     max_lr=1e-4, # This was 1e-3, you changed it to 1e-4
+    #     total_steps=total_steps,
+    #     pct_start=config.get('warmup_ratio', 0.3),
+    #     anneal_strategy='cos',
+    #     div_factor=25.0,
+    #     final_div_factor=10000.0
+    # )
+    
+    # --- ADD THIS LINE INSTEAD ---
+    scheduler = None # Use a fixed LR
 
     scaler = GradScaler() if torch.cuda.is_available() else None
 
@@ -172,7 +179,9 @@ def train_model(model, dataloaders, config, device, save_path):
                 'epoch': epoch,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
-                'scheduler_state_dict': scheduler.state_dict(),
+                # --- CHANGE THIS BLOCK BELOW ---
+                'scheduler_state_dict': scheduler.state_dict() if scheduler else None,
+                # -------------------------------
                 'best_val_acc': best_val_acc,
                 'config': config,
                 'history': history
